@@ -1,114 +1,63 @@
-🤖 Echo — Personal WhatsApp Bot
+# Echo Your Personal WhatsApp Bot
 
-Echo is a personal WhatsApp bot built with Node.js and Baileys, created for experimentation, learning, and private use.
+Echo is your personal WhatsApp bot built with Node.js and Baileys, created for experimentation, learning, and private use.
 
-It is designed to be stable, configurable, and easy to extend, with a clean command system, permission controls, and safe media handling.
+It is designed to be easily configurable, and easy to add commands, with a clean command system, permission controls, and safe media handling.
 
-Echo responds to messages prefixed with . and can be used in both private chats and groups, depending on configuration.
+Echo responds to messages prefixed with `.` and can be used in both private chats and groups, depending on configuration.
 
-🎯 Purpose
+## Echo's Purpose
 
-This project is:
+This project is intended for personal use and learning and experimental purposes
 
-For personal use
+Features and structure are built to be clear and maintainable.
 
-For learning and experimentation
+## Current Features
 
-Not intended for public deployment or mass usage
+### Command System
 
-Features and structure are built to be clear and maintainable, not bloated.
-
-✨ Current Features
-🧠 Command System
-
-Prefix-based commands (.)
-
-Modular command files
-
-Automatic argument parsing
+Echo uses prefixed based commands to respond
 
 Easy to add or remove commands
 
-🔐 Permissions
+## Permissions
 
-Bot owner detection
+There are some commands which can be only used by the owners of the bot, or in groups only.
 
-Per-command restrictions:
+Commands can be configured to be only used by the owners of bot or in groups only.
 
-Owner-only commands
+## Stickers
 
-Group-only commands
+Echo can convert images into valid WhatsApp stickers
 
-Global configuration flags to:
+Stickers can be saved and reused later
 
-Lock all commands to owner
-
-Lock all commands to groups
-
-🖼️ Stickers
-
-Convert images into valid WhatsApp stickers
-
-Proper image → WEBP conversion
-
-Stickers can be saved and reused
-
-Graceful handling of blocked media
-
-🧱 Stability
+## Stability
 
 Central message handler
 
-Safe async execution
+Safe asynchronous execution
 
-Error handling to prevent crashes
+Careful error handling to prevent crashes
 
 Designed to tolerate WhatsApp media limitations
 
-⚙️ Configuration
+## Configuration
 
-All main behavior is controlled from config.js:
+All main behavior is controlled from config.js
 
-module.exports = {
-  prefix: '.',
-  owner: 'YOUR_NUMBER',
-  globalOwnerOnly: false,
-  globalGroupOnly: false,
-  botName: 'Echo'
-}
+## Running the Bot
 
-📂 Project Structure
-Echo/
-├── auth/               # WhatsApp session data
-├── commands/           # Command modules
-├── handlers/           # Message handling logic
-├── config.js           # Global configuration
-├── index.js            # Entry point
-└── README.md
+1. Ensure that all dependencies are present: `npm install @whiskeysockets/baileys sharp qrcode-terminal dotenv @google/generative-ai`
 
-🚀 Running the Bot
-npm install
-node index.js
+2. Run the `index.js` file using `node index.js` in the terminal
 
+3. Scan the QR code with WhatsApp to log in.
 
-Scan the QR code with WhatsApp Web to log in.
-
-⚠️ Notes
+## Notes
 
 Media handling depends on WhatsApp Web behavior
 
 Some images may be blocked by WhatsApp servers
 
 This bot is not optimized for public or large-scale use
-
-🧠 Philosophy
-
-Echo is built to be:
-
-Simple
-
-Predictable
-
-Easy to modify
-
-A solid base for future features
