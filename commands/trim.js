@@ -1,12 +1,12 @@
-// commands/bass.js
 const { downloadMediaMessage } = require("@whiskeysockets/baileys")
 const { exec } = require("child_process")
 const fs = require("fs")
 const path = require("path")
+const crypto = require("crypto")
 
 module.exports = {
-    name: "bass",
-    description: "Boost bass (optional strength)",
+    name: "trim",
+    description: "Trim audio by time (seconds)",
 
     run: async ({ sock, msg, args }) => {
         const jid = msg.key.remoteJid
@@ -14,24 +14,31 @@ module.exports = {
 
         if (!ctx?.quotedMessage?.audioMessage) {
             return sock.sendMessage(jid, {
-                text: "❌ Reply to an audio with `.bass [1-30]`\nExample: `.bass 15`"
+                text: "❌ Reply to an audio with `.trim <start> <end>`"
             })
         }
 
+        if (args.length < 2) {
+            return sock.sendMessage(jid, {
+                text: "❌ Usage: `.trim <start> <end>`\nExample: `.trim 5 12`"
+            })
+        }
 
-        let gain = 15
-        if (args?.[0]) {
-            const parsed = parseInt(args[0])
-            if (!isNaN(parsed)) {
-                gain = Math.max(1, Math.min(parsed, 30))
-            }
+        const start = parseFloat(args[0])
+        const end = parseFloat(args[1])
+
+        if (isNaN(start) || isNaN(end) || start < 0 || end <= start) {
+            return sock.sendMessage(jid, {
+                text: "❌ Invalid time range"
+            })
         }
 
         const tempDir = path.join(__dirname, "../temp")
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir)
 
-        const input = path.join(tempDir, `bass-in-${Date.now()}.mp3`)
-        const output = path.join(tempDir, `bass-out-${Date.now()}.mp3`)
+        const id = crypto.randomBytes(5).toString("hex")
+        const input = path.join(tempDir, `trim-in-${id}.mp3`)
+        const output = path.join(tempDir, `trim-out-${id}.mp3`)
 
         const mediaMsg = {
             key: {
@@ -48,13 +55,16 @@ module.exports = {
                 mediaMsg,
                 "buffer",
                 {},
-                { logger: sock.logger, reuploadRequest: sock.updateMediaMessage }
+                {
+                    logger: sock.logger,
+                    reuploadRequest: sock.updateMediaMessage
+                }
             )
 
             fs.writeFileSync(input, buffer)
 
             exec(
-                `ffmpeg -y -i "${input}" -af "bass=g=${gain}:f=100:w=0.6" "${output}"`,
+                `ffmpeg -y -i "${input}" -ss ${start} -to ${end} -c copy "${output}"`,
                 async (err) => {
                     if (err) throw err
 
@@ -69,8 +79,10 @@ module.exports = {
             )
 
         } catch (e) {
-            console.error("BASS ERROR:", e)
-            sock.sendMessage(jid, { text: "❌ Failed to boost bass" })
+            console.error("TRIM ERROR:", e)
+            await sock.sendMessage(jid, {
+                text: "❌ Failed to trim audio"
+            })
         }
     }
 }
