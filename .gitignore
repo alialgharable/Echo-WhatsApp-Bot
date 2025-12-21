@@ -1,5 +1,11 @@
-**/auth/
+bin/*.exe
+
+node_modules/
+
+
+temp/
+*.mp3
+
+
 .env
-bin/ffmpeg.exe
-bin/
-node_modules
+auth/*.json
