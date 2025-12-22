@@ -48,11 +48,10 @@ All main behavior is controlled from config.js
 
 ## Running the Bot
 
-1. Ensure that all dependencies are present: `npm install @whiskeysockets/baileys sharp qrcode-terminal dotenv @google/generative-ai`
-
-2. Run the `index.js` file using `node index.js` in the terminal
-
+1. Run the [install dependencies](installDependencies.bat) file
+2. Start the bot using the [run](run.bat) file
 3. Scan the QR code with WhatsApp to log in.
+4. Close the terminal when you want to stop the bot
 
 ## Notes
 
