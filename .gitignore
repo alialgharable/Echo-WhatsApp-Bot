@@ -1,2 +1,11 @@
-**/auth/
+bin/*.exe
+
+node_modules/
+
+
+temp/
+*.mp3
+
+
 .env
+auth/*.json
