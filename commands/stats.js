@@ -7,12 +7,12 @@ module.exports = {
     ownerOnly: true,
 
     run: async ({ sock, msg }) => {
-        const jid = msg.key.remoteJid;
+        const groupJid = msg.key.remoteJid;
 
-        const messages = getLastMessages(jid, 500);
+        const allMessages = getLastMessages(groupJid, 500);
 
-        if (!messages.length) {
-            return sock.sendMessage(jid, {
+        if (!allMessages.length) {
+            return sock.sendMessage(groupJid, {
                 text: "❌ No messages stored yet."
             });
         }
@@ -20,12 +20,12 @@ module.exports = {
         const userCount = {};
         let totalLength = 0;
 
-        for (const m of messages) {
+        for (const m of allMessages) {
             userCount[m.sender] = (userCount[m.sender] || 0) + 1;
             totalLength += m.text.length;
         }
 
-        const totalMessages = messages.length;
+        const totalMessages = allMessages.length;
         const users = Object.keys(userCount);
         const activeUsers = users.length;
 
@@ -38,16 +38,11 @@ module.exports = {
 
         const avgLength = (totalLength / totalMessages).toFixed(1);
 
-        const firstTime = new Date(messages[0].time * 1000).toLocaleString();
-        const lastTime = new Date(messages[messages.length - 1].time * 1000).toLocaleString();
+        const firstTime = new Date(allMessages[0].time * 1000).toLocaleString();
+        const lastTime = new Date(allMessages[allMessages.length - 1].time * 1000).toLocaleString();
 
-        // ✅ Resolve WhatsApp display name
-        let topUserName;
-        try {
-            topUserName = await sock.getName(topUser);
-        } catch {
-            topUserName = topUser.replace(/\D/g, "");
-        }
+        const topUserMessage = allMessages.find(m => m.sender === topUser);
+        const topUserName = topUserMessage?.pushName || topUser;
 
         const statsText = `
 📊 *Chat Statistics*
@@ -67,7 +62,7 @@ ${firstTime}
 ${lastTime}
         `.trim();
 
-        await sock.sendMessage(jid, { text: statsText });
-        await maybeAutoVoice(sock, jid, statsText);
+        await sock.sendMessage(groupJid, { text: statsText });
+        await maybeAutoVoice(sock, groupJid, statsText);
     }
 };

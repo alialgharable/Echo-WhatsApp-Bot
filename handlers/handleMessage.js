@@ -1,31 +1,33 @@
 const fs = require("fs");
 const path = require("path");
+
 const { globalOwnerOnly, globalGroupOnly, owners } = require("../config");
 const { prefix } = require("../helper_commands/settings");
 const { saveMessage, getLastMessages } = require("../messagestore");
 
-
 const commands = {};
 
 const commandFiles = fs.readdirSync(path.join(__dirname, "../commands"));
-
 for (const file of commandFiles) {
   const command = require(`../commands/${file}`);
   commands[command.name] = command;
 }
 
-function normalizeNumber(jid) {
-  return jid?.replace(/\D/g, "");
-}
-
-function isOwner(msg) {
+async function isOwner(sock, msg) {
+  if (!msg || !msg.key) return false;
   if (msg.key.fromMe === true) return true;
 
-  const senderJid = msg.key.participant || msg.key.remoteJid;
+  const lid =
+    msg.key.participant ||
+    msg.key.remoteJid;
 
-  const senderNumber = normalizeNumber(senderJid);
+  const store = sock.signalRepository?.lidMapping;
+  if (!store) return false;
 
-  return owners.includes(senderNumber);
+  const pn = await store.getPNForLID(lid);
+  if (!pn) return false;
+
+  return owners.includes(pn.split(":")[0]);
 }
 
 function isGroup(msg) {
@@ -34,44 +36,50 @@ function isGroup(msg) {
 
 function getText(msg) {
   if (!msg.message) return null;
-
   const m = msg.message;
   if (m.conversation) return m.conversation;
   if (m.extendedTextMessage?.text) return m.extendedTextMessage.text;
-
   if (m.ephemeralMessage?.message) {
     return getText({ message: m.ephemeralMessage.message });
   }
-
   if (m.viewOnceMessage?.message) {
     return getText({ message: m.viewOnceMessage.message });
   }
-
   return null;
 }
 
 module.exports = async (sock, msg) => {
+  if (!msg || !msg.key) return;
   if (msg.key.remoteJid === "status@broadcast") return;
 
   const text = getText(msg);
   if (!text) return;
 
-  const jid = msg.key.remoteJid;
-  const sender = msg.key.participant || jid;
-
-
   const ts =
     msg.messageTimestamp?.low ??
     msg.messageTimestamp;
 
-
   if (ts && !text.startsWith(prefix)) {
-    saveMessage(jid, sender, text, ts);
+    await saveMessage(
+      sock,
+      msg,
+      text,
+      ts,
+      msg.pushName
+    );
   }
 
+  const lid =
+    msg.key.participant || msg.key.remoteJid;
 
-  console.log(getLastMessages(msg.key.remoteJid, 50));
+  const phone =
+    await sock.signalRepository?.lidMapping?.getPNForLID(lid);
 
+  if (phone) {
+    const messages = getLastMessages(msg.key.remoteJid, 500);
+
+    console.log(messages);
+  }
 
   if (!text.startsWith(prefix)) return;
 
@@ -81,11 +89,8 @@ module.exports = async (sock, msg) => {
   const command = commands[commandName];
   if (!command) return;
 
-
-
-
   if (!command.ignoreGlobal) {
-    if (globalOwnerOnly && !isOwner(msg)) {
+    if (globalOwnerOnly && !(await isOwner(sock, msg))) {
       return sock.sendMessage(msg.key.remoteJid, {
         text: "❌ Commands are restricted to bot owners.",
       });
@@ -98,7 +103,7 @@ module.exports = async (sock, msg) => {
     }
   }
 
-  if (command.ownerOnly && !isOwner(msg)) {
+  if (command.ownerOnly && !(await isOwner(sock, msg))) {
     return sock.sendMessage(msg.key.remoteJid, {
       text: "❌ This command is owner-only.",
     });
@@ -115,5 +120,4 @@ module.exports = async (sock, msg) => {
   } catch (err) {
     console.error("COMMAND ERROR:", err);
   }
-
 };
