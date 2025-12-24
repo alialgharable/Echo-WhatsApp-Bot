@@ -1,4 +1,5 @@
 const { maybeAutoVoice } = require("../utils/maybeAutoVoice");
+const config = require("../config");
 
 module.exports = {
     name: "uptime",
@@ -15,14 +16,14 @@ module.exports = {
         const days = Math.floor(uptimeSeconds / 86400);
 
         const uptime = `${days}d ${hours}h ${minutes}m ${seconds}s`;
-
         const text = `⏱ Uptime: ${uptime}`;
 
         await sock.sendMessage(jid, { text });
+
         await maybeAutoVoice(
             sock,
-            msg.key.remoteJid,
-            reply,
+            jid,
+            text,
             {
                 enabled: config.autovoice,
                 elevenlabs: config.elevenlabs

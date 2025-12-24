@@ -1,11 +1,20 @@
 const fs = require("fs");
 const path = require("path");
 const ffmpeg = require("fluent-ffmpeg");
-const ffmpegPath = require("ffmpeg-static");
 const gTTS = require("gtts");
 const { ElevenLabsClient } = require("@elevenlabs/elevenlabs-js");
 
-ffmpeg.setFfmpegPath(ffmpegPath);
+function resolveBinary(winName, unixName) {
+    const local = path.join(__dirname, "..", "bin", winName);
+    if (process.platform === "win32" && fs.existsSync(local)) {
+        return local;
+    }
+    return unixName;
+}
+
+
+const FFMPEG = resolveBinary("ffmpeg.exe", "ffmpeg");
+ffmpeg.setFfmpegPath(FFMPEG);
 
 function cleanText(text) {
     return text
@@ -58,10 +67,10 @@ async function maybeAutoVoice(sock, jid, text, options = {}) {
     if (!clean) return;
 
     const tempDir = path.join(__dirname, "../temp");
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+    fs.mkdirSync(tempDir, { recursive: true });
 
-    const mp3 = path.join(tempDir, "av.mp3");
-    const opus = path.join(tempDir, "av.opus");
+    const mp3 = path.join(tempDir, `av_${Date.now()}.mp3`);
+    const opus = path.join(tempDir, `av_${Date.now()}.opus`);
 
     if (elevenlabs?.apiKey) {
         try {

@@ -1,5 +1,6 @@
 const { getLastMessages } = require("../messagestore");
 const { maybeAutoVoice } = require("../utils/maybeAutoVoice");
+const config = require("../config"); 
 
 module.exports = {
     name: "stats",
@@ -63,10 +64,11 @@ ${lastTime}
         `.trim();
 
         await sock.sendMessage(groupJid, { text: statsText });
+
         await maybeAutoVoice(
             sock,
-            msg.key.remoteJid,
-            reply,
+            groupJid,
+            statsText,
             {
                 enabled: config.autovoice,
                 elevenlabs: config.elevenlabs
