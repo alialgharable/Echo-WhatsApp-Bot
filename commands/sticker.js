@@ -1,6 +1,5 @@
 const axios = require("axios");
 const FormData = require("form-data");
-const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
@@ -43,7 +42,7 @@ module.exports = {
         };
 
         const tempDir = path.join(__dirname, "../temp");
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+        fs.mkdirSync(tempDir, { recursive: true });
 
         try {
             /* ================= IMAGE ================= */
@@ -84,23 +83,31 @@ module.exports = {
                     }
                 );
 
-                const noBgPngBuffer = Buffer.from(response.data);
+                const inputPng = path.join(tempDir, `img_${Date.now()}.png`);
+                const outputWebp = path.join(tempDir, `sticker_${Date.now()}.webp`);
 
-                const webpBuffer = await sharp(noBgPngBuffer)
-                    .resize(512, 512, {
-                        fit: "contain",
-                        background: { r: 0, g: 0, b: 0, alpha: 0 }
-                    })
-                    .webp({ quality: 80 })
-                    .toBuffer();
+                fs.writeFileSync(inputPng, response.data);
 
-                return sock.sendMessage(jid, { sticker: webpBuffer });
+                await new Promise((res, rej) => {
+                    exec(
+                        `"${FFMPEG}" -y -i "${inputPng}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=transparent" -vcodec libwebp -lossless 0 -compression_level 6 -qscale 80 "${outputWebp}"`,
+                        err => err ? rej(err) : res()
+                    );
+                });
+
+                await sock.sendMessage(jid, {
+                    sticker: fs.readFileSync(outputWebp)
+                });
+
+                fs.unlinkSync(inputPng);
+                fs.unlinkSync(outputWebp);
+                return;
             }
 
             /* ================= VIDEO ================= */
             if (quoted.videoMessage) {
-                const inputPath = path.join(tempDir, "input.mp4");
-                const outputPath = path.join(tempDir, "sticker.webp");
+                const inputPath = path.join(tempDir, `vid_${Date.now()}.mp4`);
+                const outputPath = path.join(tempDir, `sticker_${Date.now()}.webp`);
 
                 const videoBuffer = await downloadMediaMessage(
                     mediaMsg,
@@ -114,17 +121,12 @@ module.exports = {
 
                 fs.writeFileSync(inputPath, videoBuffer);
 
-                await new Promise(resolve => {
+                await new Promise((res, rej) => {
                     exec(
-                        `"${FFMPEG}" -i "${inputPath}" -vf "scale=512:512:force_original_aspect_ratio=decrease,fps=15" -loop 0 -an -vsync 0 "${outputPath}"`,
-                        { windowsHide: true },
-                        () => resolve()
+                        `"${FFMPEG}" -y -i "${inputPath}" -vf "scale=512:512:force_original_aspect_ratio=decrease,fps=15" -loop 0 -an -vsync 0 "${outputPath}"`,
+                        err => err ? rej(err) : res()
                     );
                 });
-
-                if (!fs.existsSync(outputPath)) {
-                    throw new Error("Video sticker conversion failed");
-                }
 
                 await sock.sendMessage(jid, {
                     sticker: fs.readFileSync(outputPath)

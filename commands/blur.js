@@ -1,16 +1,27 @@
-const { downloadContentFromMessage } = require("@whiskeysockets/baileys")
-const sharp = require("sharp")
 const fs = require("fs")
 const path = require("path")
 const crypto = require("crypto")
+const { exec } = require("child_process")
+const { downloadMediaMessage } = require("@whiskeysockets/baileys")
+
+function resolveBinary(winName, unixName) {
+    const local = path.join(__dirname, "..", "bin", winName)
+    if (process.platform === "win32" && fs.existsSync(local)) {
+        return local
+    }
+    return unixName
+}
+
+const FFMPEG = resolveBinary("ffmpeg.exe", "ffmpeg")
 
 module.exports = {
     name: "blur",
-    description: "Blur an image",
+    description: "Blur an image using FFmpeg",
 
     run: async ({ sock, msg }) => {
         const jid = msg.key.remoteJid
-        const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+        const ctx = msg.message?.extendedTextMessage?.contextInfo
+        const quoted = ctx?.quotedMessage
 
         if (!quoted?.imageMessage) {
             return sock.sendMessage(jid, {
@@ -18,35 +29,55 @@ module.exports = {
             })
         }
 
+        const mediaMsg = {
+            key: {
+                remoteJid: jid,
+                fromMe: false,
+                id: ctx.stanzaId,
+                participant: ctx.participant
+            },
+            message: quoted
+        }
+
         const tempDir = path.join(__dirname, "../temp")
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir)
+        fs.mkdirSync(tempDir, { recursive: true })
 
         const id = crypto.randomBytes(5).toString("hex")
-        const input = path.join(tempDir, `blur-in-${id}.jpg`)
-        const output = path.join(tempDir, `blur-out-${id}.jpg`)
+        const inputPath = path.join(tempDir, `blur_in_${id}.png`)
+        const outputPath = path.join(tempDir, `blur_out_${id}.jpg`)
 
         try {
-            const stream = await downloadContentFromMessage(quoted.imageMessage, "image")
-            let buffer = Buffer.from([])
+            const imgBuffer = await downloadMediaMessage(
+                mediaMsg,
+                "buffer",
+                {},
+                {
+                    logger: sock.logger,
+                    reuploadRequest: sock.updateMediaMessage
+                }
+            )
 
-            for await (const chunk of stream) {
-                buffer = Buffer.concat([buffer, chunk])
-            }
+            fs.writeFileSync(inputPath, imgBuffer)
 
-            fs.writeFileSync(input, buffer)
-
-            await sharp(input).blur(8).toFile(output)
-
-            await sock.sendMessage(jid, {
-                image: fs.readFileSync(output)
+            await new Promise((res, rej) => {
+                exec(
+                    `"${FFMPEG}" -y -i "${inputPath}" -vf "boxblur=10:1" "${outputPath}"`,
+                    err => err ? rej(err) : res()
+                )
             })
 
-        } catch (e) {
-            console.error("BLUR ERROR:", e)
-            sock.sendMessage(jid, { text: "❌ Failed to blur image" })
-        } finally {
-            if (fs.existsSync(input)) fs.unlinkSync(input)
-            if (fs.existsSync(output)) fs.unlinkSync(output)
+            await sock.sendMessage(jid, {
+                image: fs.readFileSync(outputPath)
+            })
+
+            fs.unlinkSync(inputPath)
+            fs.unlinkSync(outputPath)
+
+        } catch (err) {
+            console.error("BLUR ERROR:", err)
+            await sock.sendMessage(jid, {
+                text: "❌ Failed to blur image."
+            })
         }
     }
 }
