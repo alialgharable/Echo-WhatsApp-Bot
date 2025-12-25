@@ -131,13 +131,25 @@ module.exports = {
                 fs.writeFileSync(inputPath, videoBuffer);
 
                 await new Promise((res, rej) => {
-                    exec(
-                        `${ffmpegCmd} -y -i "${inputPng}" ` +
-                        `-vf "scale=512:512:force_original_aspect_ratio=decrease,` +
-                        `pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" ` +
-                        `-vcodec libwebp -lossless 0 -compression_level 6 -q:v 80 "${outputWebp}"`,
-                        err => err ? rej(err) : res()
-                    );
+                    const cmd = `
+                    ffmpeg -y
+                    -i "${input}"
+                    -vf "scale=512:512:force_original_aspect_ratio=decrease,
+                    pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000"
+                    -c:v libwebp
+                    -lossless 0
+                    -compression_level 6
+                    -q:v 80
+                    -pix_fmt yuva420p
+                    "${output}"
+                    `.replace(/\n/g, ' ')
+
+                    exec(cmd, (err) => {
+                        if (err) {
+                            console.error("STICKER ERROR:", err)
+                        }
+                    })
+
 
 
                 });
