@@ -1,40 +1,36 @@
-const axios = require("axios");
-const FormData = require("form-data");
-const fs = require("fs");
-const path = require("path");
-const { exec } = require("child_process");
-const { downloadMediaMessage } = require("@whiskeysockets/baileys");
-const { REMOVE_BG_API_KEY } = require("../config");
-
-
+const axios = require("axios")
+const FormData = require("form-data")
+const fs = require("fs")
+const path = require("path")
+const { exec } = require("child_process")
+const { downloadMediaMessage } = require("@whiskeysockets/baileys")
+const { REMOVE_BG_API_KEY } = require("../config")
 
 function resolveBinary(winName, unixName) {
-    const local = path.join(__dirname, "..", "bin", winName);
+    const local = path.join(__dirname, "..", "bin", winName)
     if (process.platform === "win32" && fs.existsSync(local)) {
-        return local;
+        return `"${local}"`
     }
-    return unixName;
+    return unixName
 }
 
-const FFMPEG = resolveBinary("ffmpeg.exe", "ffmpeg");
-const isWin = process.platform === "win32";
-const ffmpegCmd = isWin ? `"${FFMPEG}"` : FFMPEG;
+const FFMPEG = resolveBinary("ffmpeg.exe", "ffmpeg")
 
 
 
 module.exports = {
     name: "sticker",
-    description: "Convert image/video to sticker (background removed for images)",
+    description: "Convert image/video to sticker (errors sent to WhatsApp)",
 
     run: async ({ sock, msg }) => {
-        const jid = msg.key.remoteJid;
-        const ctx = msg.message?.extendedTextMessage?.contextInfo;
-        const quoted = ctx?.quotedMessage;
+        const jid = msg.key.remoteJid
+        const ctx = msg.message?.extendedTextMessage?.contextInfo
+        const quoted = ctx?.quotedMessage
 
         if (!quoted?.imageMessage && !quoted?.videoMessage) {
             return sock.sendMessage(jid, {
                 text: "❌ Reply to an *image or video* with `.sticker`"
-            });
+            })
         }
 
         const mediaMsg = {
@@ -45,20 +41,23 @@ module.exports = {
                 participant: ctx.participant
             },
             message: quoted
-        };
+        }
 
-        const tempDir = path.join(__dirname, "../temp");
-        fs.mkdirSync(tempDir, { recursive: true });
+        const tempDir = path.join(__dirname, "../temp")
+        fs.mkdirSync(tempDir, { recursive: true })
 
-        try {
 
-            if (quoted.imageMessage) {
-                if (!REMOVE_BG_API_KEY) {
-                    return sock.sendMessage(jid, {
-                        text: "❌ remove.bg API key is not configured."
-                    });
-                }
+        if (quoted.imageMessage) {
+            if (!REMOVE_BG_API_KEY) {
+                return sock.sendMessage(jid, {
+                    text: "❌ remove.bg API key is not configured."
+                })
+            }
 
+            const inputPng = path.join(tempDir, `img_${Date.now()}.png`)
+            const outputWebp = path.join(tempDir, `sticker_${Date.now()}.webp`)
+
+            try {
                 const imgBuffer = await downloadMediaMessage(
                     mediaMsg,
                     "buffer",
@@ -67,14 +66,14 @@ module.exports = {
                         logger: sock.logger,
                         reuploadRequest: sock.updateMediaMessage
                     }
-                );
+                )
 
-                const formData = new FormData();
+                const formData = new FormData()
                 formData.append("image_file", imgBuffer, {
                     filename: "input.png",
                     contentType: "image/png"
-                });
-                formData.append("size", "auto");
+                })
+                formData.append("size", "auto")
 
                 const response = await axios.post(
                     "https://api.remove.bg/v1.0/removebg",
@@ -87,37 +86,52 @@ module.exports = {
                         responseType: "arraybuffer",
                         timeout: 60000
                     }
-                );
+                )
 
-                const inputPng = path.join(tempDir, `img_${Date.now()}.png`);
-                const outputWebp = path.join(tempDir, `sticker_${Date.now()}.webp`);
-
-                fs.writeFileSync(inputPng, response.data);
+                fs.writeFileSync(inputPng, response.data)
 
                 await new Promise((res, rej) => {
-                    exec(
-                        `${ffmpegCmd} -y -i "${inputPng}" ` +
-                        `-vf "scale=512:512:force_original_aspect_ratio=decrease,` +
-                        `pad=512:512:(ow-iw)/2:(oh-ih)/2:color=transparent" ` +
-                        `-vcodec libwebp -lossless 0 -compression_level 6 -qscale 80 "${outputWebp}"`,
-                        err => err ? rej(err) : res()
-                    );
-                });
+                    const cmd = `
+                    ${FFMPEG} -y
+                    -i "${inputPng}"
+                    -vf "scale=512:512:force_original_aspect_ratio=decrease,
+                    pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000"
+                    -c:v libwebp
+                    -lossless 0
+                    -compression_level 6
+                    -q:v 80
+                    -pix_fmt yuva420p
+                    "${outputWebp}"
+                    `.replace(/\n/g, " ")
+
+                    exec(cmd, (err, stdout, stderr) => {
+                        if (err) rej(stderr || err.message)
+                        else res()
+                    })
+                })
 
                 await sock.sendMessage(jid, {
                     sticker: fs.readFileSync(outputWebp)
-                });
+                })
 
-                fs.unlinkSync(inputPng);
-                fs.unlinkSync(outputWebp);
-                return;
+            } catch (err) {
+                console.error("IMAGE STICKER ERROR:", err)
+
+                await sock.sendMessage(jid, {
+                    text: `❌ Image sticker error:\n\n${err.toString().slice(0, 4000)}`
+                })
             }
 
+            if (fs.existsSync(inputPng)) fs.unlinkSync(inputPng)
+            if (fs.existsSync(outputWebp)) fs.unlinkSync(outputWebp)
+            return
+        }
 
-            if (quoted.videoMessage) {
-                const inputPath = path.join(tempDir, `vid_${Date.now()}.mp4`);
-                const outputPath = path.join(tempDir, `sticker_${Date.now()}.webp`);
+        if (quoted.videoMessage) {
+            const inputPath = path.join(tempDir, `vid_${Date.now()}.mp4`)
+            const outputPath = path.join(tempDir, `sticker_${Date.now()}.webp`)
 
+            try {
                 const videoBuffer = await downloadMediaMessage(
                     mediaMsg,
                     "buffer",
@@ -126,15 +140,14 @@ module.exports = {
                         logger: sock.logger,
                         reuploadRequest: sock.updateMediaMessage
                     }
-                );
+                )
 
-                fs.writeFileSync(inputPath, videoBuffer);
-                let error = ""
+                fs.writeFileSync(inputPath, videoBuffer)
 
                 await new Promise((res, rej) => {
                     const cmd = `
-                    ffmpeg -y
-                    -i "${input}"
+                    ${FFMPEG} -y
+                    -i "${inputPath}"
                     -vf "scale=512:512:force_original_aspect_ratio=decrease,
                     pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000"
                     -c:v libwebp
@@ -142,39 +155,30 @@ module.exports = {
                     -compression_level 6
                     -q:v 80
                     -pix_fmt yuva420p
-                    "${output}"
-                    `.replace(/\n/g, ' ')
+                    -loop 0
+                    "${outputPath}"
+                    `.replace(/\n/g, " ")
 
-                    exec(cmd, (err) => {
-                        if (err) {
-                            error = err
-                            console.error("STICKER ERROR:", err)
-
-                        }
-
+                    exec(cmd, (err, stdout, stderr) => {
+                        if (err) rej(stderr || err.message)
+                        else res()
                     })
-
-
-
-                });
-
-                await sock.sendMessage(jid,{
-                    text : error
                 })
 
                 await sock.sendMessage(jid, {
                     sticker: fs.readFileSync(outputPath)
-                });
+                })
 
-                fs.unlinkSync(inputPath);
-                fs.unlinkSync(outputPath);
+            } catch (err) {
+                console.error("VIDEO STICKER ERROR:", err)
+
+                await sock.sendMessage(jid, {
+                    text: `❌ Video sticker error:\n\n${err.toString().slice(0, 4000)}`
+                })
             }
 
-        } catch (err) {
-            console.error("STICKER ERROR:", err);
-            await sock.sendMessage(jid, {
-                text: "❌ Failed to create sticker."
-            });
+            if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
         }
     }
-};
+}
