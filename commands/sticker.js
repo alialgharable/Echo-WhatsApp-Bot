@@ -51,7 +51,7 @@ module.exports = {
         fs.mkdirSync(tempDir, { recursive: true });
 
         try {
-            /* ================= IMAGE ================= */
+
             if (quoted.imageMessage) {
                 if (!REMOVE_BG_API_KEY) {
                     return sock.sendMessage(jid, {
@@ -113,7 +113,7 @@ module.exports = {
                 return;
             }
 
-            /* ================= VIDEO ================= */
+
             if (quoted.videoMessage) {
                 const inputPath = path.join(tempDir, `vid_${Date.now()}.mp4`);
                 const outputPath = path.join(tempDir, `sticker_${Date.now()}.webp`);
@@ -132,11 +132,13 @@ module.exports = {
 
                 await new Promise((res, rej) => {
                     exec(
-                        `${ffmpegCmd} -y -i "${inputPath}" ` +
-                        `-vf "scale=512:512:force_original_aspect_ratio=decrease,fps=15" ` +
-                        `-loop 0 -an -vsync 0 "${outputPath}"`,
+                        `${ffmpegCmd} -y -i "${inputPng}" ` +
+                        `-vf "scale=512:512:force_original_aspect_ratio=decrease,` +
+                        `pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" ` +
+                        `-vcodec libwebp -lossless 0 -compression_level 6 -q:v 80 "${outputWebp}"`,
                         err => err ? rej(err) : res()
                     );
+
                 });
 
                 await sock.sendMessage(jid, {
