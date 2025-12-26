@@ -73,7 +73,8 @@ Let’s get started.`.trim();
     const tempDir = path.join(__dirname, "../temp");
     fs.mkdirSync(tempDir, { recursive: true });
 
-    const voiceMp3 = path.join(tempDir, "voice.mp3");
+    const cachedVoice = path.join(__dirname, "../assets/voice.mp3");
+    const tempVoice = path.join(tempDir, "voice_tmp.mp3");
     const finalOpus = path.join(tempDir, "intro_final.opus");
 
     const intro = path.join(__dirname, "../assets/intro.mp3");
@@ -81,22 +82,32 @@ Let’s get started.`.trim();
     const outro = path.join(__dirname, "../assets/outro.mp3");
 
     try {
-      const clean = cleanText(text);
+      // =========================
+      // 1. Generate voice ONCE
+      // =========================
+      if (!fs.existsSync(cachedVoice)) {
+        const clean = cleanText(text);
 
-      if (config.elevenlabs?.apiKey) {
-        try {
-          await elevenLabsTTS(clean, voiceMp3);
-        } catch {
-          await googleTTS(clean, voiceMp3);
+        if (config.elevenlabs?.apiKey) {
+          try {
+            await elevenLabsTTS(clean, tempVoice);
+          } catch {
+            await googleTTS(clean, tempVoice);
+          }
+        } else {
+          await googleTTS(clean, tempVoice);
         }
-      } else {
-        await googleTTS(clean, voiceMp3);
+
+        fs.renameSync(tempVoice, cachedVoice);
       }
 
+      // =========================
+      // 2. Assemble final audio
+      // =========================
       const cmd = `
 "${FFMPEG}" -y \
 -i "${intro}" \
--i "${voiceMp3}" \
+-i "${cachedVoice}" \
 -stream_loop -1 -i "${bed}" \
 -i "${outro}" \
 -filter_complex "
@@ -127,9 +138,8 @@ Let’s get started.`.trim();
         text: "❌ Failed to generate introduction voice.",
       });
     } finally {
-      [voiceMp3, finalOpus].forEach(
-        (f) => fs.existsSync(f) && fs.unlinkSync(f)
-      );
+      if (fs.existsSync(tempVoice)) fs.unlinkSync(tempVoice);
+      if (fs.existsSync(finalOpus)) fs.unlinkSync(finalOpus);
     }
   },
 };

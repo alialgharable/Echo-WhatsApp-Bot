@@ -37,7 +37,7 @@ module.exports = {
         await maybeAutoVoice(
             sock,
             msg.key.remoteJid,
-            reply,
+            text,
             {
                 enabled: config.autovoice,
                 elevenlabs: config.elevenlabs
