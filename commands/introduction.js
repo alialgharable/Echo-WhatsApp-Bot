@@ -38,11 +38,14 @@ async function elevenLabsTTS(text, out) {
     apiKey: config.elevenlabs.apiKey,
   });
 
-  const stream = await client.textToSpeech.convert(config.elevenlabs.voiceId, {
-    text,
-    modelId: "eleven_multilingual_v2",
-    outputFormat: "mp3_44100_128",
-  });
+  const stream = await client.textToSpeech.convert(
+    config.elevenlabs.voiceId,
+    {
+      text,
+      modelId: "eleven_multilingual_v2",
+      outputFormat: "mp3_44100_128",
+    }
+  );
 
   const w = fs.createWriteStream(out);
   stream.pipe(w);
@@ -60,50 +63,73 @@ module.exports = {
   run: async ({ sock, msg }) => {
     const jid = msg.key.remoteJid;
 
-    const text =
-      `Hello! I’m ${botName}.\nI’m your personal whatsApp assistant designed to help you inside whatsapp.\nI can download media, manage groups, and automate tasks.\nLet’s get started.`.trim();
+    const text = `Hello. I’m ${botName}.
+Your personal WhatsApp assistant.
+I help you download media, manage groups, and automate tasks.
+Let’s get started.`.trim();
+
     await sock.sendMessage(jid, { text });
 
     const tempDir = path.join(__dirname, "../temp");
     fs.mkdirSync(tempDir, { recursive: true });
 
-    const mp3 = path.join(tempDir, "tts.mp3");
-    const opus = path.join(tempDir, "tts.opus");
+    const voiceMp3 = path.join(tempDir, "voice.mp3");
+    const finalOpus = path.join(tempDir, "intro_final.opus");
 
-    const clean = cleanText(text);
+    const intro = path.join(__dirname, "../assets/intro.mp3");
+    const bed = path.join(__dirname, "../assets/bed_loop.mp3");
+    const outro = path.join(__dirname, "../assets/outro.mp3");
 
     try {
+      const clean = cleanText(text);
+
       if (config.elevenlabs?.apiKey) {
         try {
-          await elevenLabsTTS(clean, mp3);
+          await elevenLabsTTS(clean, voiceMp3);
         } catch {
-          await googleTTS(clean, mp3);
+          await googleTTS(clean, voiceMp3);
         }
       } else {
-        await googleTTS(clean, mp3);
+        await googleTTS(clean, voiceMp3);
       }
 
+      const cmd = `
+"${FFMPEG}" -y \
+-i "${intro}" \
+-i "${voiceMp3}" \
+-stream_loop -1 -i "${bed}" \
+-i "${outro}" \
+-filter_complex "
+[1:a][2:a]amix=inputs=2:weights=1 0.2:dropout_transition=0[voicebed];
+[0:a]apad=pad_dur=0.5[intro_pad];
+[voicebed]apad=pad_dur=1.0[voice_pad];
+[intro_pad][voice_pad][3:a]concat=n=3:v=0:a=1[out]
+" \
+-map "[out]" \
+-ac 1 -ar 48000 -c:a libopus "${finalOpus}"
+      `;
+
       await new Promise((res, rej) => {
-        exec(
-          `"${FFMPEG}" -y -i "${mp3}" -ac 1 -ar 48000 -c:a libopus "${opus}"`,
-          (err) => (err ? rej(err) : res())
-        );
+        exec(cmd, (err) => (err ? rej(err) : res()));
       });
 
       await sock.sendMessage(jid, {
-        audio: fs.readFileSync(opus),
+        audio: fs.readFileSync(finalOpus),
         mimetype: "audio/ogg; codecs=opus",
         ptt: true,
       });
 
-      HelpCommand.run({sock, msg});
+      HelpCommand.run({ sock, msg });
+
     } catch (err) {
-      console.error("INTRODUCTION TTS ERROR:", err);
+      console.error("INTRODUCTION VOICE ERROR:", err);
       await sock.sendMessage(jid, {
-        text: "❌ Failed to generate voice message.",
+        text: "❌ Failed to generate introduction voice.",
       });
     } finally {
-      [mp3, opus].forEach((f) => fs.existsSync(f) && fs.unlinkSync(f));
+      [voiceMp3, finalOpus].forEach(
+        (f) => fs.existsSync(f) && fs.unlinkSync(f)
+      );
     }
   },
 };
