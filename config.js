@@ -5,7 +5,7 @@ module.exports = {
     ? process.env.OWNERS.split(",").map(o => o.trim())
     : [],
 
-  globalOwnerOnly: true,
+  globalOwnerOnly: false,
   globalGroupOnly: false,
 
   geminiApiKey: process.env.GEMINI_API_KEY || null,
