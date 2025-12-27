@@ -34,7 +34,7 @@ module.exports = {
 
       const command = require(`./${file}`);
       if (!command.name) continue;
-
+ 
       if (command.ownerOnly) {
         ownerOnlyCommands.push(command);
         // text += `🔹 *${prefix}${command.name}* _(Owners Only)_`;
