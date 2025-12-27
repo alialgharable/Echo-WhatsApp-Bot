@@ -85,7 +85,7 @@ module.exports = {
     cacheTimestamp = Date.now();
 
     await sock.sendMessage(msg.key.remoteJid, {
-      image: fs.readFileSync(path.join(__dirname, "../assets/bot.png")),
+      image: fs.readFileSync(path.join(__dirname, "../assets/bot.webp")),
       caption: text,
     });
   },
