@@ -14,6 +14,9 @@ const {
 
 const qrcode = require('qrcode-terminal')
 const handleMessage = require('./handlers/handleMessage')
+const statusStore = require('./helper_commands/statusStore');
+
+
 
 
 async function startBot() {
@@ -53,13 +56,24 @@ async function startBot() {
         const msg = messages[0]
         if (!msg.message) return
 
+        // Live story listener
+        for (const m of messages) {
+            if (m.key?.remoteJid === 'status@broadcast') {
+                console.log('📥 New story received from:', m.key.participant);
+                statusStore.addStatus(m);
+            }
+        }
+
+        // Pass to your regular message handler
         if (typeof handleMessage === 'function') {
             await handleMessage(sock, msg)
         } else {
             console.error('handleMessage is not a function — handler not loaded')
         }
-
     })
+
+
+
 }
 
 startBot()
