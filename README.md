@@ -1,63 +1,162 @@
-# Echo Your Personal WhatsApp Bot
+![Echo Bot](./assets/readme-image.webp)
 
-Echo is your personal WhatsApp bot built with Node.js and Baileys, created for experimentation, learning, and private use.
+# Echo — Personal WhatsApp Bot
 
-It is designed to be easily configurable, and easy to add commands, with a clean command system, permission controls, and safe media handling.
+> A modular, permission-aware WhatsApp bot built with **Node.js** and **Baileys** for learning, experimentation, and private use.
 
-Echo responds to messages prefixed with `.` and can be used in both private chats and groups, depending on configuration.
+![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen)
+![License](https://img.shields.io/badge/license-private-lightgrey)
 
-## Echo's Purpose
+---
 
-This project is intended for personal use and learning and experimental purposes
+## Overview
 
-Features and structure are built to be clear and maintainable.
+Echo is a clean and extensible WhatsApp bot designed to be easy to understand, configure, and extend. It features a modular command system, fine‑grained permission controls, and safe media handling.
 
-## Current Features
+- Commands are triggered using a configurable prefix (default: `.`)
+- Works in **private chats** and **groups** (based on configuration)
+- Built for stability and maintainability, not mass deployment
+
+---
+
+## Purpose
+
+This project is intended for:
+
+- Personal use
+- Learning and experimentation
+- Exploring WhatsApp automation with Baileys
+
+It is **not** intended for public hosting, commercial use, or large‑scale deployments.
+
+---
+
+## Features
 
 ### Command System
 
-Echo uses prefixed based commands to respond
+- Prefix‑based command handling
+- Modular command files
+- Easy to add, remove, or modify commands
 
-Easy to add or remove commands
+### Permissions
 
-## Permissions
+- Owner‑only commands
+- Group‑only commands
+- Per‑command permission configuration
 
-There are some commands which can be only used by the owners of the bot, or in groups only.
+### Stickers
 
-Commands can be configured to be only used by the owners of bot or in groups only.
+- Convert images into valid WhatsApp stickers
+- Save stickers and reuse them later
 
-## Stickers
+### Stability & Safety
 
-Echo can convert images into valid WhatsApp stickers
+- Centralized message handler
+- Safe asynchronous execution
+- Robust error handling to prevent crashes
+- Designed to tolerate WhatsApp Web media limitations
 
-Stickers can be saved and reused later
+---
 
-## Stability
+## Commands
 
-Central message handler
+Below are example commands. Actual availability may depend on configuration and permissions.
 
-Safe asynchronous execution
+| Command      | Description                   | Scope      |
+| ------------ | ----------------------------- | ---------- |
+| `.help`      | Show available commands       | All chats  |
+| `.sticker`   | Convert an image to a sticker | All chats  |
+| `.setprefix` | Change the command prefix     | Owner only |
+| `.setname`   | Change the bot name           | Owner only |
+| `.stop`      | Safely shut down the bot      | Owner only |
 
-Careful error handling to prevent crashes
+> You can easily add new commands by creating a new command file in the commands directory.
 
-Designed to tolerate WhatsApp media limitations
+---
 
 ## Configuration
 
-All main behavior is controlled from config.js
+### `config.js`
 
-## Running the Bot
+Contains core configuration such as:
 
-1. Run the [install dependencies](installDependencies.bat) file
-2. Run the [create .env](create-env.ps1) file to create the .env file and follow the instructions inside
-3. Start the bot using the [run](run.bat) file
-4. Scan the QR code with WhatsApp to log in.
-5. Close the terminal when you want to stop the bot
+- Owners
+- Group behavior
+- Feature toggles
 
-## Notes
+### `settings.json`
 
-Media handling depends on WhatsApp Web behavior
+Stores runtime‑editable settings:
 
-Some images may be blocked by WhatsApp servers
+- Bot name
+- Command prefix
 
-This bot is not optimized for public or large-scale use
+These can also be modified using in‑chat commands:
+
+- `setprefix`
+- `setname`
+
+---
+
+## Installation & Usage
+
+### Requirements
+
+- Node.js **18+**
+- Windows
+
+### Steps
+
+1. Install dependencies:
+
+   ```bash
+   installDependencies.bat
+   ```
+
+2. Create the `.env` file:
+
+   ```bash
+   create-env.ps1
+   ```
+
+   Follow the instructions shown in the `.env` file.
+
+3. Start the bot:
+
+   ```bash
+   run.bat
+   ```
+
+4. Scan the QR code with WhatsApp (first run only)
+
+5. Stop the bot safely using:
+
+   ```text
+   .stop
+   ```
+
+---
+
+## Notes & Limitations
+
+- Media handling depends on WhatsApp Web behavior
+- Some images may be blocked by WhatsApp servers
+- Not optimized for public bots or high‑traffic usage
+- Use at your own risk
+
+---
+
+## Disclaimer
+
+This project is for **educational and experimental purposes only**. The author is not responsible for account bans or misuse.
+
+---
+
+## Contributing
+
+This is a personal project, but improvements and ideas are welcome. Feel free to fork and experiment.
+
+---
+
+**Echo** — simple, modular, and built for learning.

@@ -20,7 +20,7 @@ if errorlevel 1 (
 
 REM Install dependencies
 echo Running npm install...
-npm install
+npm install && npm install -g pm2
 
 if errorlevel 1 (
     echo ERROR: npm install failed.
