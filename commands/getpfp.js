@@ -1,67 +1,65 @@
 const { maybeAutoVoice } = require("../utils/maybeAutoVoice");
 const config = require("../config");
-const os = require("os");
-
-const isTermux = /android/i.test(os.type());
 
 module.exports = {
-  name: "getpfp",
-  description: "Fetch profile picture safely on Termux (~720p, no crash)",
+    name: "getpfp",
+    description: "Download the profile picture of a WhatsApp number",
 
-  run: async ({ sock, msg, args }) => {
-    if (!args.length) {
-      return sock.sendMessage(msg.key.remoteJid, {
-        text: `❌ Usage: .getpfp <number or participant>\nExample: .getpfp +96181053255`,
-      });
-    }
+    run: async ({ sock, msg, args }) => {
+        if (!args.length) {
+            return sock.sendMessage(msg.key.remoteJid, {
+                text: `❌ Usage: .getpfp <number or participant>\nExample: .getpfp +96181053255`,
+            });
+        }
 
-    const input = args[0];
-    try {
-      const store = sock.signalRepository?.lidMapping;
-      let waId;
+        const input = args[0]; // number or LID
 
-      if (store) {
-        const pn = await store.getPNForLID(input);
-        if (pn) waId = pn;
-      }
+        try {
+            const store = sock.signalRepository?.lidMapping;
 
-      if (!waId) {
-        const number = input.replace(/\D/g, "");
-        waId = number + "@s.whatsapp.net";
-      }
+            let waId;
 
-      // Medium quality PFP (~720p max)
-      let pfpUrl;
-      try {
-        pfpUrl = await sock.profilePictureUrl(waId, { type: "image" });
-      } catch {
-        return sock.sendMessage(msg.key.remoteJid, {
-          text: `⚠️ No profile picture found for ${input}`,
-        });
-      }
+            // Try to get WhatsApp ID from LID mapping
+            if (store) {
+                const pn = await store.getPNForLID(input);
+                if (pn) {
+                    waId = pn;
+                }
+            }
 
-      await sock.sendMessage(msg.key.remoteJid, {
-        image: { url: pfpUrl },
-        caption: `📌 Profile picture of ${input}${isTermux ? " (Termux-safe)" : ""}`,
-      });
+            // Fallback: convert number to WhatsApp ID
+            if (!waId) {
+                const number = input.replace(/\D/g, "");
+                waId = number + "@s.whatsapp.net";
+            }
 
-      // Only enable auto-voice if NOT on Termux
-      if (!isTermux) {
-        await maybeAutoVoice(
-          sock,
-          msg.key.remoteJid,
-          `Here is the profile picture of ${input}`,
-          {
-            enabled: config.autovoice,
-            elevenlabs: config.elevenlabs,
-          }
-        );
-      }
-    } catch (err) {
-      console.error("GETPFP ERROR:", err);
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: `⚠️ Failed to fetch profile picture for ${input}.\nError: ${err.message}`,
-      });
-    }
-  },
+            const pfpUrl = await sock.profilePictureUrl(waId);
+
+            if (!pfpUrl) {
+                return sock.sendMessage(msg.key.remoteJid, {
+                    text: `⚠️ No profile picture found for ${input}`,
+                });
+            }
+
+            await sock.sendMessage(msg.key.remoteJid, {
+                image: { url: pfpUrl },
+                caption: `📌 Profile picture of ${input}`,
+            });
+
+            await maybeAutoVoice(
+                sock,
+                msg.key.remoteJid,
+                `Here is the profile picture of ${input}`,
+                {
+                    enabled: config.autovoice,
+                    elevenlabs: config.elevenlabs,
+                }
+            );
+        } catch (err) {
+            console.error("GETPFP ERROR:", err);
+            await sock.sendMessage(msg.key.remoteJid, {
+                text: `⚠️ Failed to fetch profile picture for ${input}.\nError: ${err.message}`,
+            });
+        }
+    },
 };
