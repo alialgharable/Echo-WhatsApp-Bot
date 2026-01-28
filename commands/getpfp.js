@@ -8,7 +8,7 @@ module.exports = {
     run: async ({ sock, msg, args }) => {
         if (!args.length) {
             return sock.sendMessage(msg.key.remoteJid, {
-                text: `❌ Usage: .getpfp <number or participant>\nExample: .getpfp +96181053255`,
+                text: `❌ Usage: .getpfp <number or participant>\nExample: .getpfp +961xxxxxxxx`,
             });
         }
 
