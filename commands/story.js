@@ -8,28 +8,38 @@ module.exports = {
   run: async ({ sock, msg, args }) => {
     if (!args.length) {
       return sock.sendMessage(msg.key.remoteJid, {
-        text: `❌ Usage: .story <number or participant> [index]\nExample: .story +96181053255 0`,
+        text: `❌ Usage: .story <number or participant> [index]\nExample: .story +961xxxxxxxx 0`,
       });
     }
 
-    const lid = args[0]; // LID or number
+    const input = args[0]; // number or LID
     const index = args[1] ? parseInt(args[1], 10) : 0;
 
     try {
       const store = sock.signalRepository?.lidMapping;
-      if (!store) throw new Error("Signal store not found");
 
-      const pn = await store.getPNForLID(lid); // WhatsApp ID like 96181053255@s.whatsapp.net
-      if (!pn) throw new Error("Could not resolve WhatsApp ID");
+      let waId;
 
-      const waId = pn;
+      // Try to get WhatsApp ID from LID mapping
+      if (store) {
+        const pn = await store.getPNForLID(input);
+        if (pn) {
+          waId = pn;
+        }
+      }
+
+      // Fallback: convert number to WhatsApp ID
+      if (!waId) {
+        const number = input.replace(/\D/g, "");
+        waId = number + "@s.whatsapp.net";
+      }
 
       // Fetch stories
       const stories = await sock.fetchStatus(waId);
 
       if (!stories || !stories.length) {
         return sock.sendMessage(msg.key.remoteJid, {
-          text: `⚠️ No stories found for ${args[0]}`,
+          text: `⚠️ No stories found for ${input}`,
         });
       }
 
@@ -58,7 +68,7 @@ module.exports = {
     } catch (err) {
       console.error("STORY ERROR:", err);
       await sock.sendMessage(msg.key.remoteJid, {
-        text: `⚠️ Failed to fetch story for ${args[0]}.\nError: ${err.message}`,
+        text: `⚠️ Failed to fetch story for ${input}.\nError: ${err.message}`,
       });
     }
   },
