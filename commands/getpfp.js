@@ -33,7 +33,8 @@ module.exports = {
                 waId = number + "@s.whatsapp.net";
             }
 
-            const pfpUrl = await sock.profilePictureUrl(waId);
+            const pfpUrl = await sock.profilePictureUrl(waId, "image");
+
 
             if (!pfpUrl) {
                 return sock.sendMessage(msg.key.remoteJid, {
