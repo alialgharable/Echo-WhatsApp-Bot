@@ -3,7 +3,7 @@ const config = require("../config");
 
 module.exports = {
     name: "story",
-    description: "Fetch WhatsApp story/status of a number (optimized for Termux)",
+    description: "Fetch WhatsApp story/status (~720p, Termux-safe)",
 
     run: async ({ sock, msg, args }) => {
         if (!args.length) {
@@ -44,10 +44,10 @@ module.exports = {
             const remaining = stories.length - (index + 1);
             const caption =
                 remaining > 0
-                    ? `📌 Story sent. ${remaining} more remaining.`
-                    : `📌 Story sent. No more stories remaining.`;
+                    ? `📌 Story sent (~720p). ${remaining} more remaining.`
+                    : `📌 Story sent (~720p). No more stories remaining.`;
 
-            // Send by URL directly to avoid memory crash
+            // Send by URL directly (~720p)
             await sock.sendMessage(msg.key.remoteJid, {
                 [selectedStory.isVideo ? "video" : "image"]: { url: selectedStory.url },
                 caption,
