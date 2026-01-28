@@ -1,4 +1,3 @@
-const { maybeAutoVoice } = require("../utils/maybeAutoVoice");
 const config = require("../config");
 
 module.exports = {
@@ -16,51 +15,38 @@ module.exports = {
 
         try {
             const store = sock.signalRepository?.lidMapping;
-
             let waId;
 
-            // Try to get WhatsApp ID from LID mapping
             if (store) {
                 const pn = await store.getPNForLID(input);
-                if (pn) {
-                    waId = pn;
-                }
+                if (pn) waId = pn;
             }
-
-            // Fallback: convert number to WhatsApp ID
             if (!waId) {
                 const number = input.replace(/\D/g, "");
                 waId = number + "@s.whatsapp.net";
             }
 
+            // This function throws an error if the picture is not accessible
             const pfpUrl = await sock.profilePictureUrl(waId, "image");
-
-
-            if (!pfpUrl) {
-                return sock.sendMessage(msg.key.remoteJid, {
-                    text: `⚠️ No profile picture found for ${input}`,
-                });
-            }
-
             await sock.sendMessage(msg.key.remoteJid, {
                 image: { url: pfpUrl },
                 caption: `📌 Profile picture of ${input}`,
             });
 
-            await maybeAutoVoice(
-                sock,
-                msg.key.remoteJid,
-                `Here is the profile picture of ${input}`,
-                {
-                    enabled: config.autovoice,
-                    elevenlabs: config.elevenlabs,
-                }
-            );
         } catch (err) {
             console.error("GETPFP ERROR:", err);
-            await sock.sendMessage(msg.key.remoteJid, {
-                text: `⚠️ Failed to fetch profile picture for ${input}.\nError: ${err.message}`,
-            });
+
+            // Check for specific error messages from Baileys
+            if (err.message.includes("404") || err.message.includes("not-authorized") || err.message.includes("bad-request")) {
+                await sock.sendMessage(msg.key.remoteJid, {
+                    text: `⚠️ No profile picture found for ${input} or it is set to private.`,
+                });
+            } else {
+                // Handle any other unexpected errors
+                await sock.sendMessage(msg.key.remoteJid, {
+                    text: `⚠️ Failed to fetch profile picture.\nError: ${err.message}`,
+                });
+            }
         }
     },
 };

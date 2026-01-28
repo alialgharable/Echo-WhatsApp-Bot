@@ -1,4 +1,3 @@
-const { maybeAutoVoice } = require("../utils/maybeAutoVoice");
 const config = require("../config");
 const statusStore = require("../helper_commands/statusStore");
 const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
@@ -98,12 +97,6 @@ module.exports = {
             await sock.sendMessage(msg.key.remoteJid, {
                 [contentType]: { url: tempFile },
                 caption,
-            });
-
-            // Auto-voice (optional)
-            await maybeAutoVoice(sock, msg.key.remoteJid, caption, {
-                enabled: config.autovoice,
-                elevenlabs: config.elevenlabs,
             });
 
             // Delete temp file

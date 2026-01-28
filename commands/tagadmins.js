@@ -2,7 +2,6 @@ module.exports = {
     name: 'tagadmins',
     description: 'Tag all group admins',
     groupOnly: true,
-    ownerOnly: true,
 
     run: async ({ sock, msg, args }) => {
         const jid = msg.key.remoteJid
