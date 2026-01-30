@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const triviaCmd = require("./commands/trivia.js")
+const triviaCmd = require("../commands/trivia.js")
 
 const { globalOwnerOnly, globalGroupOnly, owners } = require("../config");
 const { prefix } = require("../helper_commands/settings");
