@@ -1,4 +1,6 @@
-const trivia = require("./trivia.js");
+const path = require("path");
+const trivia = require(path.join(__dirname, "trivia.js"));
+
 
 module.exports = {
     name: "answer",
