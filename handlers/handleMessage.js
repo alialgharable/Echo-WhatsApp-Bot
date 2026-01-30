@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-import { handleQR } from "./qr.js";
+const triviaCmd = require("./commands/trivia.js")
 
 const { globalOwnerOnly, globalGroupOnly, owners } = require("../config");
 const { prefix } = require("../helper_commands/settings");
@@ -115,6 +115,16 @@ module.exports = async (sock, msg) => {
       text: "❌ This command can only be used in groups.",
     });
   }
+
+
+  if (text.startsWith(".trivia")) {
+    triviaCmd.run({ sock, msg, args })
+  }
+
+  if (text.startsWith(".answer")) {
+    triviaCmd.handleAnswer({ sock, msg, args })
+  }
+
 
   try {
     await command.run({ sock, msg, args });
