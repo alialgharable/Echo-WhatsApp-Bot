@@ -13,6 +13,12 @@ for (const file of commandFiles) {
   commands[command.name] = command;
 }
 
+const gameFiles = fs.readdirSync(path.join(__dirname, "../commands/games"));
+for (const file of gameFiles) {
+  const command = require(`../commands/games/${file}`);
+  commands[command.name] = command;
+}
+
 async function isOwner(sock, msg) {
   if (!msg || !msg.key) return false;
   if (msg.key.fromMe === true) return true;
