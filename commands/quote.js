@@ -9,17 +9,17 @@ module.exports = {
         const jid = msg.key.remoteJid
 
         try {
-            const response = await axios.get("https://api.quotable.io/random")
-            const data = response.data
+            const res = await axios.get("https://zenquotes.io/api/random")
+            const data = res.data[0]
 
-            const quoteText = `💬 "${data.content}"\n\n— ${data.author}`
+            const quoteText = `💬 "${data.q}"\n\n— ${data.a}`
 
             await sock.sendMessage(jid, { text: quoteText })
 
         } catch (e) {
             console.error("QUOTE ERROR:", e)
             await sock.sendMessage(jid, {
-                text: "❌ Failed to fetch a quote"
+                text: "❌ Quote service is currently unavailable."
             })
         }
     }

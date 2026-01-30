@@ -1,9 +1,6 @@
 // commands/trivia.js
 const axios = require("axios")
 
-// Global object to track active trivia sessions
-// Make sure to initialize this somewhere in your bot main file:
-// global.activeTrivia = {}
 if (!global.activeTrivia) global.activeTrivia = {}
 
 module.exports = {
@@ -14,119 +11,134 @@ module.exports = {
         const chatId = msg.key.remoteJid
 
         if (global.activeTrivia[chatId]) {
-            return sock.sendMessage(chatId, { text: "❌ A trivia session is already active in this chat." })
+            return sock.sendMessage(chatId, { text: "❌ A trivia session is already active." })
         }
 
         try {
-            // Fetch random questions (5 questions, multiple choice)
-            const response = await axios.get("https://opentdb.com/api.php?amount=5&type=multiple")
-            const questions = response.data.results.map(q => {
-                // Shuffle answers
-                const allAnswers = [...q.incorrect_answers, q.correct_answer]
-                const shuffled = allAnswers.sort(() => Math.random() - 0.5)
-                const correctIndex = shuffled.indexOf(q.correct_answer)
+            const res = await axios.get("https://opentdb.com/api.php?amount=5&type=multiple")
+
+            const questions = res.data.results.map(q => {
+                const answers = [...q.incorrect_answers, q.correct_answer]
+                answers.sort(() => Math.random() - 0.5)
 
                 return {
                     question: q.question,
-                    options: shuffled,
-                    correct: correctIndex
+                    options: answers,
+                    correct: answers.indexOf(q.correct_answer)
                 }
             })
 
-            // Initialize session
             global.activeTrivia[chatId] = {
-                questionIndex: 0,
+                index: 0,
                 questions,
-                players: {}, // numericId -> { name, score }
+                players: {},
                 timer: null
             }
 
-            await sock.sendMessage(chatId, { text: "🎮 Trivia Competition Started! Reply with `.answer <number>` (1-4) to participate!" })
+            await sock.sendMessage(chatId, {
+                text: "🎮 Trivia started!\nAnswer with `.answer <1-4>`"
+            })
 
-            // Ask first question
             askQuestion(sock, chatId)
 
-        } catch (e) {
-            console.error("TRIVIA ERROR:", e)
-            await sock.sendMessage(chatId, { text: "❌ Failed to start trivia." })
+        } catch (err) {
+            console.error(err)
+            sock.sendMessage(chatId, { text: "❌ Failed to fetch trivia." })
         }
     }
 }
 
-// Helper function to ask a question
+// ─────────────────────────────
+
 async function askQuestion(sock, chatId) {
     const session = global.activeTrivia[chatId]
     if (!session) return
 
-    const q = session.questions[session.questionIndex]
-    const optionsText = q.options.map((o, i) => `${i + 1}) ${o}`).join("\n")
+    // reset answered flags
+    Object.values(session.players).forEach(p => p.answered = false)
+
+    const q = session.questions[session.index]
+    const opts = q.options.map((o, i) => `${i + 1}) ${o}`).join("\n")
 
     await sock.sendMessage(chatId, {
-        text: `🎯 Question ${session.questionIndex + 1}:\n${q.question}\n\n${optionsText}\n\nYou have 20 seconds to answer!`
+        text: `🎯 Question ${session.index + 1}\n\n${q.question}\n\n${opts}\n\n⏱️ 20 seconds`
     })
 
-    // Start 20-second timer
     session.timer = setTimeout(async () => {
         await sock.sendMessage(chatId, {
-            text: `⏰ Time's up! Correct answer: ${q.correct + 1}) ${q.options[q.correct]}`
+            text: `⏰ Time's up!\nCorrect answer: ${q.correct + 1}) ${q.options[q.correct]}`
         })
 
-        session.questionIndex++
-
-        if (session.questionIndex < session.questions.length) {
-            askQuestion(sock, chatId)
-        } else {
-            // End game
-            announceWinner(sock, chatId)
-        }
-    }, 20000) // 20 seconds
+        nextQuestion(sock, chatId)
+    }, 20000)
 }
 
-// Function to handle answers (call this from your message handler)
+// ─────────────────────────────
+
 module.exports.handleAnswer = async ({ sock, msg, args }) => {
     const chatId = msg.key.remoteJid
-    const numericId = parseInt(msg.key.participant.replace(/\D/g, ""), 10)
-    const name = msg.pushName || "Player"
     const session = global.activeTrivia[chatId]
-
     if (!session) return
-    const q = session.questions[session.questionIndex]
 
-    if (!args[0]) return
     const answer = parseInt(args[0], 10) - 1
     if (isNaN(answer) || answer < 0 || answer > 3) return
 
-    // Add player if new
-    if (!session.players[numericId]) session.players[numericId] = { name, score: 0 }
+    const uid = msg.key.participant || msg.key.remoteJid
+    const name = msg.pushName || "Player"
 
-    // Only first answer counts
-    if (session.players[numericId].answered) return
+    if (!session.players[uid]) {
+        session.players[uid] = { name, score: 0, answered: false }
+    }
 
-    session.players[numericId].answered = true
+    const player = session.players[uid]
+    if (player.answered) return
+
+    player.answered = true
+
+    const q = session.questions[session.index]
 
     if (answer === q.correct) {
-        session.players[numericId].score++
-        await sock.sendMessage(chatId, { text: `✅ ${name} answered correctly!` })
-    } else {
-        await sock.sendMessage(chatId, { text: `❌ ${name} answered incorrectly.` })
+        player.score++
+        clearTimeout(session.timer)
+
+        await sock.sendMessage(chatId, {
+            text: `✅ ${name} is correct! (+1 point)`
+        })
+
+        nextQuestion(sock, chatId)
     }
 }
 
-// Announce winner
-async function announceWinner(sock, chatId) {
+// ─────────────────────────────
+
+async function nextQuestion(sock, chatId) {
     const session = global.activeTrivia[chatId]
     if (!session) return
 
-    const leaderboard = Object.entries(session.players)
-        .sort(([, a], [, b]) => b.score - a.score)
-        .map(([, p], idx) => `${idx + 1}. ${p.name} - ${p.score} pts`)
-        .join("\n")
+    session.index++
+
+    if (session.index < session.questions.length) {
+        askQuestion(sock, chatId)
+    } else {
+        endGame(sock, chatId)
+    }
+}
+
+// ─────────────────────────────
+
+async function endGame(sock, chatId) {
+    const session = global.activeTrivia[chatId]
+    if (!session) return
+
+    const board = Object.values(session.players)
+        .sort((a, b) => b.score - a.score)
+        .map((p, i) => `${i + 1}. ${p.name} — ${p.score} pts`)
+        .join("\n") || "No players"
 
     await sock.sendMessage(chatId, {
-        text: `🏁 Trivia Competition Ended!\n\n🏆 Final Leaderboard:\n${leaderboard}`
+        text: `🏁 Trivia ended!\n\n🏆 Leaderboard:\n${board}`
     })
 
-    // Clean up
     clearTimeout(session.timer)
     delete global.activeTrivia[chatId]
 }
