@@ -2,6 +2,7 @@ const path = require("path");
 const trivia = require(path.join(__dirname, "trivia.js"));
 
 
+
 module.exports = {
     name: "answer",
     description: "Answer the current trivia question",

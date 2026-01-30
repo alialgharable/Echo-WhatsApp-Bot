@@ -13,10 +13,16 @@ for (const file of commandFiles) {
   commands[command.name] = command;
 }
 
-const gameFiles = fs.readdirSync(path.join(__dirname, "../commands/games"));
+const gameFiles = fs.readdirSync(path.join(__dirname, "../commands/games"))
+  .filter(f => f.endsWith(".js"));
+
 for (const file of gameFiles) {
-  const command = require(`../commands/games/${file}`);
-  commands[command.name] = command;
+  try {
+    const command = require(path.join(__dirname, "../commands/games", file));
+    commands[command.name] = command;
+  } catch (err) {
+    console.error("Failed to load game command:", file, err);
+  }
 }
 
 async function isOwner(sock, msg) {
