@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+import { handleQR } from "./qr.js";
 
 const { globalOwnerOnly, globalGroupOnly, owners } = require("../config");
 const { prefix } = require("../helper_commands/settings");
