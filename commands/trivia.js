@@ -76,54 +76,38 @@ async function askQuestion(sock, chatId) {
 // ─────────────────────────────
 
 module.exports.handleAnswer = async ({ sock, msg, args }) => {
-    const chatId = msg.key.remoteJid
-    const session = global.activeTrivia[chatId]
-    if (!session) return
+    const chatId = msg.key.remoteJid;
+    const session = global.activeTrivia[chatId];
+    if (!session) return;
 
-    const answer = parseInt(args[0], 10) - 1
-    if (isNaN(answer) || answer < 0 || answer > 3) return
+    const answer = parseInt(args[0], 10) - 1;
+    if (isNaN(answer) || answer < 0 || answer > 3) return;
 
-    const uid = msg.key.participant || msg.key.remoteJid
-    const name = msg.pushName || "Player"
+    const uid = msg.key.participant || msg.key.remoteJid;
+    const name = msg.pushName || "Player";
 
     if (!session.players[uid]) {
-        session.players[uid] = { name, score: 0, answered: false }
+        session.players[uid] = { name, score: 0, answered: false };
     }
 
-    const player = session.players[uid]
-    if (player.answered) return
+    const player = session.players[uid];
+    if (player.answered) return;
 
-    player.answered = true
+    player.answered = true;
 
-    const q = session.questions[session.index]
+    const q = session.questions[session.index];
 
     if (answer === q.correct) {
-        player.score++
-        clearTimeout(session.timer)
-
-        await sock.sendMessage(chatId, {
-            text: `✅ ${name} is correct! (+1 point)`
-        })
-
-        nextQuestion(sock, chatId)
-    }
-}
-
-// ─────────────────────────────
-
-async function nextQuestion(sock, chatId) {
-    const session = global.activeTrivia[chatId]
-    if (!session) return
-
-    session.index++
-
-    if (session.index < session.questions.length) {
-        askQuestion(sock, chatId)
+        player.score++;
+        await sock.sendMessage(chatId, { text: `✅ ${name} answered correctly! (+1 point)` });
     } else {
-        endGame(sock, chatId)
+        await sock.sendMessage(chatId, { text: `❌ ${name} answered incorrectly.` });
     }
-}
 
+    // Move to next question **after 1 second**, to give everyone a chance
+    clearTimeout(session.timer); // cancel the current 20s timer
+    setTimeout(() => nextQuestion(sock, chatId), 1000);
+};
 // ─────────────────────────────
 
 async function endGame(sock, chatId) {
@@ -142,3 +126,17 @@ async function endGame(sock, chatId) {
     clearTimeout(session.timer)
     delete global.activeTrivia[chatId]
 }
+
+async function nextQuestion(sock, chatId) {
+    const session = global.activeTrivia[chatId];
+    if (!session) return;
+
+    session.index++;
+
+    if (session.index < session.questions.length) {
+        askQuestion(sock, chatId);
+    } else {
+        endGame(sock, chatId);
+    }
+}
+

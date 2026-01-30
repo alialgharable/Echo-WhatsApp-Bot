@@ -115,13 +115,6 @@ module.exports = async (sock, msg) => {
     });
   }
 
-
-  if (commandName === "answer") {
-    const trivia = require("../commands/trivia.js")
-    return trivia.handleAnswer({ sock, msg, args })
-  }
-
-
   try {
     await command.run({ sock, msg, args });
   } catch (err) {
