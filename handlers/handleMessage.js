@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-const triviaCmd = require("../commands/trivia.js")
 
 const { globalOwnerOnly, globalGroupOnly, owners } = require("../config");
 const { prefix } = require("../helper_commands/settings");
@@ -117,12 +116,9 @@ module.exports = async (sock, msg) => {
   }
 
 
-  if (text.startsWith(".trivia")) {
-    triviaCmd.run({ sock, msg, args })
-  }
-
-  if (text.startsWith(".answer")) {
-    triviaCmd.handleAnswer({ sock, msg, args })
+  if (commandName === "answer") {
+    const trivia = require("../commands/trivia.js")
+    return trivia.handleAnswer({ sock, msg, args })
   }
 
 
