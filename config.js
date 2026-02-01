@@ -2,7 +2,7 @@ require("dotenv").config();
 
 module.exports = {
   owners: process.env.OWNERS
-    ? process.env.OWNERS.split(",").map(o => o.trim())
+    ? process.env.OWNERS.split(",").map((o) => o.trim())
     : [],
 
   globalOwnerOnly: false,
@@ -18,6 +18,7 @@ module.exports = {
 
   elevenlabs: {
     apiKey: process.env.ELEVENLABS_API_KEY || null,
-    voiceId: "6AUOG2nbfr0yFEeI0784"
-  }
+    voiceId: "6AUOG2nbfr0yFEeI0784",
+  },
+  github_auth_token: process.env.GITHUB_AUTH_TOKEN || null,
 };
